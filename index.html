@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="扑克助手">
+<title>Texas Hold'em 助手</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:#111118;}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;color:#fff;overscroll-behavior:none;}
+.app{max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+.header{background:#16213e;padding:env(safe-area-inset-top, 16px) 20px 12px;padding-top:calc(env(safe-area-inset-top,0px) + 16px);}
+.header h1{font-size:20px;font-weight:700;letter-spacing:-0.3px;}
+.header p{font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;}
+.stage-bar{display:flex;gap:8px;padding:12px 14px;background:#16213e;border-bottom:0.5px solid rgba(255,255,255,0.06);}
+.stage-btn{flex:1;padding:8px 4px;border-radius:9px;border:none;font-size:13px;font-weight:500;cursor:pointer;transition:background 0.2s,color 0.2s;}
+.stage-active{background:#378ADD;color:#fff;}
+.stage-done{background:rgba(55,138,221,0.18);color:#85B7EB;}
+.stage-inactive{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.3);}
+.scroll-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:40px;}
+.section{padding:14px 16px 0;}
+.sec-label{font-size:11px;font-weight:500;color:rgba(255,255,255,0.38);letter-spacing:0.9px;text-transform:uppercase;margin-bottom:10px;}
+.cards-row{display:flex;gap:9px;flex-wrap:wrap;}
+.card-slot{width:58px;height:80px;border-radius:11px;border:1.5px dashed rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:2px;background:rgba(255,255,255,0.03);transition:all 0.15s;}
+.card-slot.filled-s,.card-slot.filled-c{background:#1e1e2e;border:1.5px solid rgba(255,255,255,0.35);}
+.card-slot.filled-h,.card-slot.filled-d{background:#2a1010;border:1.5px solid rgba(220,60,60,0.6);}
+.card-slot.slot-active{border-color:#378ADD;background:rgba(55,138,221,0.12);border-style:solid;}
+.card-suit{font-size:20px;line-height:1;}
+.card-rank{font-size:14px;font-weight:700;line-height:1;}
+.suit-s,.suit-c{color:#e8e8f0;}
+.suit-h,.suit-d{color:#e84444;}
+.plus-icon{font-size:22px;color:rgba(255,255,255,0.18);line-height:1;}
+/* Picker */
+.picker-wrap{background:#1a2340;border-radius:16px;margin:14px 16px 0;overflow:hidden;}
+.picker-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 10px;}
+.picker-title{font-size:13px;color:rgba(255,255,255,0.45);}
+.picker-close{background:none;border:none;color:rgba(255,255,255,0.3);font-size:20px;cursor:pointer;line-height:1;padding:0;}
+.rank-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;padding:0 12px 10px;}
+.rank-btn{padding:9px 2px;border-radius:8px;border:none;background:rgba(255,255,255,0.08);color:#fff;font-size:13px;font-weight:500;cursor:pointer;transition:background 0.15s;}
+.rank-btn.sel-rank{background:#378ADD;}
+.suit-row{display:flex;gap:8px;padding:0 12px 10px;}
+.suit-pick{flex:1;padding:10px;border-radius:9px;border:none;font-size:22px;cursor:pointer;background:rgba(255,255,255,0.06);transition:background 0.15s;}
+.suit-pick.sel-suit{background:rgba(255,255,255,0.18);}
+.suit-pick.sel-suit-red{background:rgba(220,60,60,0.25);}
+.confirm-btn{display:block;width:calc(100% - 24px);margin:0 12px 12px;padding:12px;border-radius:10px;border:none;background:#378ADD;color:#fff;font-size:14px;font-weight:600;cursor:pointer;}
+.confirm-btn:disabled{background:rgba(55,138,221,0.25);color:rgba(255,255,255,0.3);}
+/* Analyze */
+.analyze-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 32px);margin:16px 16px 0;padding:15px;border-radius:13px;border:none;background:#1D9E75;color:#fff;font-size:16px;font-weight:600;cursor:pointer;transition:opacity 0.2s;}
+.analyze-btn:disabled{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.25);}
+/* Results */
+.result-wrap{margin:14px 16px 0;background:#1a2340;border-radius:14px;padding:16px;border:0.5px solid rgba(255,255,255,0.07);}
+.hand-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(186,117,23,0.18);border:0.5px solid rgba(186,117,23,0.4);border-radius:6px;padding:4px 10px;font-size:12px;color:#FAC775;margin-bottom:12px;}
+.result-label{font-size:11px;font-weight:500;color:rgba(255,255,255,0.38);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px;}
+.outs-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.out-pill{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:5px 10px;font-size:12px;}
+.meter-row{margin-bottom:10px;}
+.meter-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;color:rgba(255,255,255,0.7);}
+.meter-pct{font-weight:600;}
+.meter-track{height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;}
+.meter-fill{height:8px;border-radius:4px;transition:width 0.5s ease;}
+.advice-box{border-radius:10px;padding:12px 14px;margin-top:12px;}
+.advice-title{font-size:14px;font-weight:600;margin-bottom:5px;}
+.advice-text{font-size:13px;line-height:1.55;color:rgba(255,255,255,0.65);}
+.reset-row{text-align:right;margin-top:12px;}
+.reset-btn{background:rgba(220,60,60,0.12);border:0.5px solid rgba(220,60,60,0.3);color:#F09595;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Texas Hold'em 助手</h1>
+    <p>胜率分析 &middot; 听牌建议 &middot; 跟注指导</p>
+  </div>
+
+  <div class="stage-bar">
+    <button class="stage-btn stage-active" id="sb1" onclick="setStage(1)">Flop</button>
+    <button class="stage-btn stage-inactive" id="sb2" onclick="setStage(2)">Turn</button>
+    <button class="stage-btn stage-inactive" id="sb3" onclick="setStage(3)">River</button>
+  </div>
+
+  <div class="scroll-body" id="scrollBody">
+    <div class="section">
+      <div class="sec-label">我的手牌</div>
+      <div class="cards-row" id="handRow"></div>
+    </div>
+    <div class="section">
+      <div class="sec-label">公共牌</div>
+      <div class="cards-row" id="commRow"></div>
+    </div>
+
+    <div id="pickerArea"></div>
+
+    <button class="analyze-btn" id="analyzeBtn" disabled onclick="analyze()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      分析当前局面
+    </button>
+
+    <div id="resultArea"></div>
+  </div>
+</div>
+
+<script>
+const RANKS=['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+const SUITS=['s','h','d','c'];
+const SYM={s:'♠',h:'♥',d:'♦',c:'♣'};
+const RVAL={A:14,K:13,Q:12,J:11,'10':10,9:9,8:8,7:7,6:6,5:5,4:4,3:3,2:2};
+
+let stage=1;
+let hand=[null,null];
+let comm=[null,null,null,null,null];
+let activeTarget=null; // {type:'h'|'c', idx}
+let pRank=null, pSuit=null;
+
+function rv(r){return RVAL[r]||parseInt(r);}
+
+function usedSet(){
+  const s=new Set();
+  [...hand,...comm].forEach(c=>{if(c)s.add(c.r+c.s);});
+  return s;
+}
+
+function setStage(s){
+  stage=s;
+  ['sb1','sb2','sb3'].forEach((id,i)=>{
+    const b=document.getElementById(id);
+    b.className='stage-btn '+(i+1===s?'stage-active':i+1<s?'stage-done':'stage-inactive');
+  });
+  renderCards();
+  closePicker();
+  document.getElementById('resultArea').innerHTML='';
+  checkAnalyzeBtn();
+}
+
+function renderCards(){
+  // Hand
+  const hr=document.getElementById('handRow');
+  hr.innerHTML='';
+  for(let i=0;i<2;i++){
+    hr.appendChild(makeSlot('h',i,hand[i]));
+  }
+  // Community
+  const cr=document.getElementById('commRow');
+  cr.innerHTML='';
+  const n=stage===1?3:stage===2?4:5;
+  for(let i=0;i<n;i++){
+    cr.appendChild(makeSlot('c',i,comm[i]));
+  }
+}
+
+function makeSlot(type,idx,card){
+  const el=document.createElement('div');
+  const isActive=activeTarget&&activeTarget.type===type&&activeTarget.idx===idx;
+  if(card){
+    el.className=`card-slot filled-${card.s}${isActive?' slot-active':''}`;
+    el.innerHTML=`<span class="card-suit suit-${card.s}">${SYM[card.s]}</span><span class="card-rank suit-${card.s}">${card.r}</span>`;
+  } else {
+    el.className=`card-slot${isActive?' slot-active':''}`;
+    el.innerHTML=`<span class="plus-icon">+</span>`;
+  }
+  el.onclick=()=>openPicker(type,idx);
+  return el;
+}
+
+function openPicker(type,idx){
+  activeTarget={type,idx};
+  pRank=null; pSuit=null;
+  renderCards();
+  renderPicker();
+  checkAnalyzeBtn();
+}
+
+function closePicker(){
+  activeTarget=null;
+  document.getElementById('pickerArea').innerHTML='';
+  renderCards();
+}
+
+function renderPicker(){
+  const label=activeTarget.type==='h'?`手牌 ${activeTarget.idx+1}`:`公共牌 ${activeTarget.idx+1}`;
+  let html=`<div class="picker-wrap">
+    <div class="picker-header">
+      <span class="picker-title">选择${label}</span>
+      <button class="picker-close" onclick="closePicker()">&#x2715;</button>
+    </div>
+    <div class="rank-grid">`;
+  RANKS.forEach(r=>{
+    html+=`<button class="rank-btn${pRank===r?' sel-rank':''}" onclick="selRank('${r}')">${r}</button>`;
+  });
+  html+=`</div><div class="suit-row">`;
+  SUITS.forEach(s=>{
+    const isRed=s==='h'||s==='d';
+    const selCls=pSuit===s?(isRed?' sel-suit-red':' sel-suit'):'';
+    html+=`<button class="suit-pick${selCls}" style="color:${isRed?'#e84444':'#e8e8f0'}" onclick="selSuit('${s}')">${SYM[s]}</button>`;
+  });
+  html+=`</div>
+    <button class="confirm-btn" id="confirmBtn" onclick="confirmCard()" ${pRank&&pSuit?'':'disabled'}>确认</button>
+  </div>`;
+  document.getElementById('pickerArea').innerHTML=html;
+}
+
+function selRank(r){pRank=r;renderPicker();}
+function selSuit(s){pSuit=s;renderPicker();}
+
+function confirmCard(){
+  if(!pRank||!pSuit||!activeTarget) return;
+  const key=pRank+pSuit;
+  if(usedSet().has(key)){alert('这张牌已使用！');return;}
+  if(activeTarget.type==='h') hand[activeTarget.idx]={r:pRank,s:pSuit};
+  else comm[activeTarget.idx]={r:pRank,s:pSuit};
+  closePicker();
+  document.getElementById('resultArea').innerHTML='';
+  checkAnalyzeBtn();
+  document.getElementById('scrollBody').scrollTop=0;
+}
+
+function checkAnalyzeBtn(){
+  const hOk=hand[0]&&hand[1];
+  const n=stage===1?3:stage===2?4:5;
+  let cOk=true;
+  for(let i=0;i<n;i++){if(!comm[i]){cOk=false;break;}}
+  document.getElementById('analyzeBtn').disabled=!(hOk&&cOk);
+}
+
+// --- Evaluator ---
+function allRankVals(cards){return cards.map(c=>rv(c.r)).sort((a,b)=>b-a);}
+function suitGroups(cards){const g={};cards.forEach(c=>{g[c.s]=(g[c.s]||[]).concat(c);});return g;}
+function rankCounts(vals){const g={};vals.forEach(v=>{g[v]=(g[v]||0)+1;});return g;}
+
+function straightTop(vals){
+  let uniq=[...new Set(vals)].sort((a,b)=>b-a);
+  if(uniq.includes(14)) uniq.push(1);
+  for(let i=0;i+4<uniq.length;i++){
+    const sl=uniq.slice(i,i+5);
+    if(sl.every((v,j)=>j===0||sl[j-1]-v===1)) return sl[0];
+  }
+  return 0;
+}
+
+function bestHand(cards){
+  if(cards.length<2) return {name:'高牌',rank:0};
+  const vals=allRankVals(cards);
+  const sg=suitGroups(cards);
+  const rc=rankCounts(vals);
+  const counts=Object.values(rc).sort((a,b)=>b-a);
+  const hasFlush=Object.values(sg).some(v=>v.length>=5);
+  const hasStraight=straightTop(vals)>0;
+  if(hasFlush){
+    const fs=Object.entries(sg).find(([,v])=>v.length>=5);
+    if(fs){
+      const fv=allRankVals(fs[1]);
+      const st=straightTop(fv);
+      if(st>0) return {name:st===14?'皇家同花顺':'同花顺',rank:st===14?9:8};
+    }
+  }
+  if(counts[0]===4) return {name:'四条',rank:7};
+  if(counts[0]===3&&counts[1]>=2) return {name:'葫芦',rank:6};
+  if(hasFlush) return {name:'同花',rank:5};
+  if(hasStraight) return {name:'顺子',rank:4};
+  if(counts[0]===3) return {name:'三条',rank:3};
+  if(counts[0]===2&&counts[1]===2) return {name:'两对',rank:2};
+  if(counts[0]===2) return {name:'一对',rank:1};
+  return {name:'高牌',rank:0};
+}
+
+function calcOuts(allCards, hr){
+  const outs=[];
+  const vals=allRankVals(allCards);
+  const sg=suitGroups(allCards);
+  const rc=rankCounts(vals);
+
+  // Flush draw
+  const flushEntry=Object.entries(sg).find(([,v])=>v.length===4);
+  if(flushEntry) outs.push({name:'同花',count:9,bg:'rgba(55,138,221,0.12)',border:'rgba(55,138,221,0.4)',color:'#85B7EB'});
+
+  // Straight draw
+  let uniq=[...new Set(vals)].sort((a,b)=>b-a);
+  if(uniq.includes(14)) uniq.push(1);
+  let addedS=false;
+  for(let top=14;top>=5&&!addedS;top--){
+    const need=[top,top-1,top-2,top-3,top-4];
+    const have=need.filter(v=>uniq.includes(v));
+    const miss=need.filter(v=>!uniq.includes(v));
+    if(have.length===4&&miss.length===1){
+      const isEnd=miss[0]===need[0]||miss[0]===need[4];
+      outs.push({name:isEnd?'单头顺子':'双头顺子',count:isEnd?4:8,bg:'rgba(127,119,221,0.12)',border:'rgba(127,119,221,0.4)',color:'#AFA9EC'});
+      addedS=true;
+    }
+  }
+
+  // Pairs / sets
+  const tripleR=Object.entries(rc).find(([,v])=>v===3);
+  if(tripleR) outs.push({name:'四条',count:1,bg:'rgba(186,117,23,0.12)',border:'rgba(186,117,23,0.4)',color:'#FAC775'});
+  const pairR=Object.entries(rc).find(([,v])=>v===2);
+  if(pairR){
+    outs.push({name:'三条',count:2,bg:'rgba(29,158,117,0.12)',border:'rgba(29,158,117,0.4)',color:'#5DCAA5'});
+    const pairs=Object.values(rc).filter(v=>v===2);
+    if(pairs.length>=2) outs.push({name:'葫芦',count:4,bg:'rgba(212,83,126,0.12)',border:'rgba(212,83,126,0.4)',color:'#ED93B1'});
+    else outs.push({name:'两对',count:6,bg:'rgba(212,83,126,0.08)',border:'rgba(212,83,126,0.3)',color:'#F4C0D1'});
+  } else if(hr.rank===0){
+    outs.push({name:'高牌配对',count:6,bg:'rgba(255,255,255,0.06)',border:'rgba(255,255,255,0.15)',color:'rgba(255,255,255,0.5)'});
+  }
+  return outs.slice(0,5);
+}
+
+function analyze(){
+  const n=stage===1?3:stage===2?4:5;
+  const hCards=hand.filter(Boolean);
+  const cCards=comm.slice(0,n).filter(Boolean);
+  const all=[...hCards,...cCards];
+  const hr=bestHand(all);
+
+  let resultHTML='';
+
+  if(stage===3){
+    const base=[0,28,42,56,65,74,82,88,96,99];
+    let pct=base[Math.min(hr.rank,base.length-1)];
+    const topV=allRankVals(all)[0]||0;
+    if(hr.rank===0&&topV>=14) pct=30;
+    else if(hr.rank===0&&topV>=13) pct=22;
+    const adv=riverAdv(pct,hr);
+    resultHTML=buildResult(hr,[],pct,null,null,adv);
+  } else {
+    const outs=calcOuts(all,hr);
+    const total=outs.reduce((s,o)=>s+o.count,0);
+    let toT,toR,win;
+    if(stage===1){
+      toT=Math.min(95,total*2+(hr.rank>=1?12:0));
+      toR=Math.min(95,total*4+(hr.rank>=1?15:0));
+      if(hr.rank>=5) toR=Math.max(toR,72);
+      if(hr.rank>=6) toR=Math.max(toR,84);
+      win=toR;
+    } else {
+      toT=null;
+      toR=Math.min(95,total*2+(hr.rank>=1?12:0));
+      if(hr.rank>=5) toR=Math.max(toR,72);
+      win=toR;
+    }
+    const adv=makeAdv(win,total,hr,stage);
+    resultHTML=buildResult(hr,outs,win,toT,toR,adv);
+  }
+
+  document.getElementById('resultArea').innerHTML=resultHTML;
+  setTimeout(()=>{
+    const r=document.getElementById('resultArea');
+    if(r) r.scrollIntoView({behavior:'smooth',block:'start'});
+  },100);
+}
+
+function buildResult(hr,outs,win,toT,toR,adv){
+  const mColor=win>=60?'#1D9E75':win>=40?'#378ADD':win>=25?'#BA7517':'#E24B4A';
+  let html=`<div class="result-wrap">
+    <div class="hand-badge">${hr.name}</div>`;
+  if(outs.length>0){
+    html+=`<div class="result-label">听牌分析</div><div class="outs-wrap">`;
+    outs.forEach(o=>{
+      html+=`<span class="out-pill" style="background:${o.bg};border:0.5px solid ${o.border};color:${o.color}">${o.name} &middot; <strong>${o.count}</strong> outs</span>`;
+    });
+    html+=`</div>`;
+  }
+  html+=`<div class="result-label">胜率估算</div>`;
+  if(toT!==null){
+    html+=meterHTML('到 Turn',toT);
+    html+=meterHTML('到 River（摊牌）',toR||win);
+  } else {
+    html+=meterHTML(adv.stage3?'摊牌胜率':'到 River',win);
+  }
+  const aColor=adv.type==='raise'?'#378ADD':adv.type==='call'?'#1D9E75':'#E24B4A';
+  html+=`<div class="advice-box" style="background:${aColor}18;border:0.5px solid ${aColor}44">
+    <div class="advice-title" style="color:${aColor}">${adv.title}</div>
+    <div class="advice-text">${adv.text}</div>
+  </div>
+  <div class="reset-row"><button class="reset-btn" onclick="resetAll()">重新开始</button></div>
+  </div>`;
+  return html;
+}
+
+function meterHTML(label,pct){
+  const c=pct>=60?'#1D9E75':pct>=40?'#378ADD':pct>=25?'#BA7517':'#E24B4A';
+  return `<div class="meter-row">
+    <div class="meter-top"><span>${label}</span><span class="meter-pct" style="color:${c}">${Math.round(pct)}%</span></div>
+    <div class="meter-track"><div class="meter-fill" style="width:${Math.round(pct)}%;background:${c}"></div></div>
+  </div>`;
+}
+
+function makeAdv(win,outs,hr,stage){
+  if(win>=60||hr.rank>=4){
+    return {type:'raise',title:'建议加注',text:hr.rank>=4?`已成${hr.name}，主动加注施压，最大化价值。`:`胜率 ${Math.round(win)}%，有 ${outs} 张 outs，可半诈唬下注。`};
+  } else if(win>=35){
+    const ratio=Math.max(1,Math.round(100/win)-1);
+    return {type:'call',title:'建议跟注（视赔率）',text:`胜率约 ${Math.round(win)}%。底池赔率 ≥ ${ratio}:1 时跟注有利。${stage===1?'Flop 还有两条街机会。':''}`};
+  }
+  return {type:'fold',title:'建议弃牌',text:`胜率仅 ${Math.round(win)}%，期望值为负。除非赔率极高，否则果断弃牌。`};
+}
+
+function riverAdv(pct,hr){
+  if(pct>=65) return {type:'raise',title:'强势下注',text:`${hr.name}（胜率 ${pct}%），积极下注收取价值筹码。`,stage3:true};
+  if(pct>=45) return {type:'call',title:'跟注或小注试探',text:`胜率约 ${pct}%（${hr.name}），可跟注，避免大额加注。`,stage3:true};
+  return {type:'fold',title:'建议弃牌',text:`${hr.name} 偏弱（胜率 ${pct}%），面对下注果断弃牌。`,stage3:true};
+}
+
+function resetAll(){
+  hand=[null,null];comm=[null,null,null,null,null];
+  activeTarget=null; pRank=null; pSuit=null;
+  document.getElementById('pickerArea').innerHTML='';
+  document.getElementById('resultArea').innerHTML='';
+  setStage(1);
+}
+
+// Init
+renderCards();
+</script>
+</body>
+</html>
