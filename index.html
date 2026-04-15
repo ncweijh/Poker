@@ -279,14 +279,46 @@ function calcOuts(allCards, hr){
   let uniq=[...new Set(vals)].sort((a,b)=>b-a);
   if(uniq.includes(14)) uniq.push(1);
   let addedS=false;
-  for(let top=14;top>=5&&!addedS;top--){
-    const need=[top,top-1,top-2,top-3,top-4];
+  // 双头顺子：4张连续，两端各缺1张，共8 outs（如 4-5-6-7，缺3或缺8）
+  for(let top=14;top>=6&&!addedS;top--){
+    const need=[top,top-1,top-2,top-3];
     const have=need.filter(v=>uniq.includes(v));
-    const miss=need.filter(v=>!uniq.includes(v));
-    if(have.length===4&&miss.length===1){
-      const isEnd=miss[0]===need[0]||miss[0]===need[4];
-      outs.push({name:isEnd?'单头顺子':'双头顺子',count:isEnd?4:8,bg:'rgba(127,119,221,0.12)',border:'rgba(127,119,221,0.4)',color:'#AFA9EC'});
+    if(have.length===4){
+      // 两端都未成顺，才算双头
+      const lowOk=!uniq.includes(top+1)&&(top+1<=14);
+      // 只要4连张存在就是双头（两端各4张=8 outs）
+      outs.push({name:'双头顺子',count:8,bg:'rgba(127,119,221,0.12)',border:'rgba(127,119,221,0.4)',color:'#AFA9EC'});
       addedS=true;
+    }
+  }
+  // 卡肠顺子（单头/gutshot）：5张区间缺中间1张，4 outs
+  if(!addedS){
+    for(let top=14;top>=5&&!addedS;top--){
+      const need=[top,top-1,top-2,top-3,top-4];
+      const have=need.filter(v=>uniq.includes(v));
+      const miss=need.filter(v=>!uniq.includes(v));
+      if(have.length===4&&miss.length===1){
+        const isGutshot=miss[0]!==need[0]&&miss[0]!==need[4];
+        if(isGutshot){
+          outs.push({name:'卡肠顺子',count:4,bg:'rgba(127,119,221,0.12)',border:'rgba(127,119,221,0.4)',color:'#AFA9EC'});
+          addedS=true;
+        }
+      }
+    }
+  }
+  // 单头顺子（one-ended）：4连张但一端已到A或2，只能一端进张，4 outs
+  if(!addedS){
+    for(let top=14;top>=5&&!addedS;top--){
+      const need=[top,top-1,top-2,top-3,top-4];
+      const have=need.filter(v=>uniq.includes(v));
+      const miss=need.filter(v=>!uniq.includes(v));
+      if(have.length===4&&miss.length===1){
+        const isEnd=miss[0]===need[0]||miss[0]===need[4];
+        if(isEnd){
+          outs.push({name:'单头顺子',count:4,bg:'rgba(127,119,221,0.12)',border:'rgba(127,119,221,0.4)',color:'#AFA9EC'});
+          addedS=true;
+        }
+      }
     }
   }
 
